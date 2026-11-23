@@ -24,14 +24,15 @@ function countryName(request) {
 function sourceFromRequest(request, fallback) {
   const currentUrl = new URL(request.url);
   const referrer = request.headers.get("referer");
-  let contextUrl = currentUrl;
+  const currentUtm = currentUrl.searchParams.get("utm_source");
+  if (currentUtm) return clean(currentUtm, 200);
   if (referrer) {
     try {
-      contextUrl = new URL(referrer);
+      const referrerUrl = new URL(referrer);
+      const referrerUtm = referrerUrl.searchParams.get("utm_source");
+      if (referrerUtm) return clean(referrerUtm, 200);
     } catch (error) {}
   }
-  const utm = contextUrl.searchParams.get("utm_source");
-  if (utm) return clean(utm, 200);
   if (referrer) {
     try {
       const referrerUrl = new URL(referrer);
@@ -116,7 +117,7 @@ export async function onRequest(context) {
 
   const response = await context.next();
   const isPreview = url.hostname.endsWith(".pages.dev");
-  const isProductionDomain = url.hostname === "courselegend.com" || url.hostname === "www.courselegend.com";
+  const isProductionDomain = url.hostname === "courselegend.com" || url.hostname === "www.courselegend.com" || url.hostname === "cl-soon.pages.dev";
   const acceptsHtml = (request.headers.get("accept") || "").includes("text/html");
   const isHomepage = url.pathname === "/" || url.pathname === "/index.html";
 
