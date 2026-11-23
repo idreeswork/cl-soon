@@ -1,135 +1,76 @@
 (function(){
-var CONFIG = window.CL_CONFIG || {};
-var SCRIPT_URL = CONFIG.SCRIPT_URL;
-var REDIRECT_URL = CONFIG.REDIRECT_URL || "";
-var REDIRECT_DELAY_SECONDS = CONFIG.REDIRECT_DELAY_SECONDS || 5;
-var SHOW_FLOATING_CTA = !!CONFIG.SHOW_FLOATING_CTA;
-var FLOATING_CTA_URL = CONFIG.FLOATING_CTA_URL || "#";
-var FLOATING_CTA_LABEL = CONFIG.FLOATING_CTA_LABEL || "Your promo here";
-var GEO_LOOKUP_URL = CONFIG.GEO_LOOKUP_URL || "https://ipapi.co/json/";
+var form = document.getElementById("waitlist-form");
+if (!form) return;
 
-var form = document.getElementById('waitlist-form');
-var nameInput = document.getElementById('wl-name');
-var emailInput = document.getElementById('wl-email');
-var honeypot = form.querySelector('.hp');
-var note = document.getElementById('form-note');
-var button = form.querySelector('.submit');
+var nameInput = document.getElementById("wl-name");
+var emailInput = document.getElementById("wl-email");
+var honeypot = form.querySelector(".hp");
+var note = document.getElementById("form-note");
+var button = form.querySelector(".submit");
 var defaultNote = note.textContent;
-var successPanel = document.getElementById('success-panel');
-var successSub = document.getElementById('success-sub');
+var successPanel = document.getElementById("success-panel");
+var successSub = document.getElementById("success-sub");
 
-// --- Geo lookup (best-effort, never blocks or fails the signup) -----------
-// Kicked off immediately on load so it's normally already resolved by the
-// time someone finishes typing. Bounded by its own timeout so a slow or
-// unreachable third party can never hang the form.
-function fetchGeo(){
-  if(!('fetch' in window)) return Promise.resolve({ country:'', ip:'' });
-  var controller = ('AbortController' in window) ? new AbortController() : null;
-  var timer = controller && setTimeout(function(){ controller.abort(); }, 4000);
-  return fetch(GEO_LOOKUP_URL, controller ? { signal: controller.signal } : {})
-    .then(function(res){ return res.ok ? res.json() : null; })
-    .then(function(data){
-      return { country: (data && data.country_name) || '', ip: (data && data.ip) || '' };
-    })
-    .catch(function(){ return { country:'', ip:'' }; })
-    .finally(function(){ if(timer) clearTimeout(timer); });
-}
-var geoPromise = fetchGeo();
-
-// --- Source attribution -----------------------------------------------
-// Only one page exists today, so a hardcoded "landing_page" told nobody
-// anything. This pulls a real channel instead: ?utm_source, else the
-// referring site, else "direct".
 function detectSource(){
-  var utm = new URLSearchParams(window.location.search).get('utm_source');
-  if(utm) return utm.slice(0, 100);
-  if(document.referrer){
+  var params = new URLSearchParams(window.location.search);
+  var utm = params.get("utm_source");
+  if (utm) return utm.trim().slice(0, 120);
+  if (document.referrer) {
     try {
-      var refHost = new URL(document.referrer).hostname.replace(/^www\./, '');
-      if(refHost && refHost !== window.location.hostname) return refHost;
-    } catch(err){ /* malformed referrer, ignore */ }
+      var referrer = new URL(document.referrer);
+      if (referrer.hostname && referrer.hostname !== window.location.hostname) {
+        return referrer.hostname.replace(/^www\./, "").slice(0, 200);
+      }
+    } catch (error) {}
   }
-  return 'direct';
+  return "direct";
 }
 
 function setFieldInvalid(field, invalid){
-  field.closest('.field').classList.toggle('field--invalid', invalid);
-  field.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+  field.closest(".field").classList.toggle("field--invalid", invalid);
+  field.setAttribute("aria-invalid", invalid ? "true" : "false");
 }
 
 function setState(state, message){
-  note.classList.remove('is-error');
-  if(state === 'loading'){
-    button.classList.add('is-loading');
-    button.disabled = true;
-    nameInput.disabled = true;
-    emailInput.disabled = true;
-  } else {
-    button.classList.remove('is-loading');
-    button.disabled = false;
-    nameInput.disabled = false;
-    emailInput.disabled = false;
-    if(state === 'error'){ note.classList.add('is-error'); }
-  }
+  note.classList.remove("is-error");
+  var loading = state === "loading";
+  button.classList.toggle("is-loading", loading);
+  button.disabled = loading;
+  nameInput.disabled = loading;
+  emailInput.disabled = loading;
+  if (state === "error") note.classList.add("is-error");
   note.textContent = message || defaultNote;
 }
 
 function showSuccess(){
-  button.classList.remove('is-loading');
-  form.classList.add('is-leaving');
-  note.classList.add('is-leaving');
+  button.classList.remove("is-loading");
+  button.disabled = true;
+  form.classList.add("is-leaving");
+  note.classList.add("is-leaving");
   setTimeout(function(){
     form.hidden = true;
     note.hidden = true;
     successPanel.hidden = false;
-    successPanel.classList.add('is-visible');
+    successPanel.classList.add("is-visible");
     requestAnimationFrame(function(){
-      requestAnimationFrame(function(){ successPanel.classList.add('is-shown'); });
+      requestAnimationFrame(function(){
+        successPanel.classList.add("is-shown");
+      });
     });
   }, 220);
-  if(REDIRECT_URL){
-    var secondsLeft = REDIRECT_DELAY_SECONDS;
-    (function tick(){
-      successSub.textContent = "Taking you there in " + secondsLeft + "s\u2026";
-      if(secondsLeft <= 0){ window.location.href = REDIRECT_URL; return; }
-      secondsLeft -= 1;
-      setTimeout(tick, 1000);
-    })();
-  }
 }
 
-var DISPOSABLE_DOMAINS = [
-  "mailinator.com","mailinator.net","mailinator2.com",
-  "guerrillamail.com","guerrillamail.biz","guerrillamail.de","guerrillamail.info","guerrillamail.net","guerrillamail.org","guerrillamailblock.com",
-  "10minutemail.com","10minutemail.net",
-  "temp-mail.org","tempmail.com","etempmail.com","tempr.email",
-  "yopmail.com","yopmail.fr","yopmail.net",
-  "throwawaymail.com","sharklasers.com","getnada.com","dispostable.com",
-  "trashmail.com","trashmail.me","fakeinbox.com","mailnesia.com","mintemail.com",
-  "emailondeck.com","mohmal.com","maildrop.cc","discard.email","discardmail.com",
-  "spamgourmet.com","mailcatch.com","mailsac.com","moakt.com","burnermail.io",
-  "inboxkitten.com","fakemailgenerator.com"
-];
-var DUMMY_LOCAL_PARTS = ["test","testing","asdf","asdfasdf","qwerty","example","fake","dummy","notreal","nobody","noreply","no-reply","none","na","xxx","abc","abcd","user","email","admin","sample","foo","bar"];
-var DUMMY_DOMAINS = ["example.com","example.org","example.net","test.com","test.org","domain.com","email.com","yourdomain.com","mydomain.com","company.com","site.com"];
-
-function emailLooksFake(value){
-  var parts = value.toLowerCase().split('@');
-  if(parts.length !== 2) return false;
-  var local = parts[0];
-  var domain = parts[1];
-  if(DISPOSABLE_DOMAINS.indexOf(domain) !== -1) return true;
-  if(DUMMY_DOMAINS.indexOf(domain) !== -1) return true;
-  if(DUMMY_LOCAL_PARTS.indexOf(local) !== -1) return true;
-  var domainRoot = domain.split('.')[0];
-  if(local === domainRoot) return true;
-  if(/^(.)\1+$/.test(local)) return true;
-  return false;
+function messageForError(code){
+  if (code === "disposable_email") return "Use an email address you actually check.";
+  if (code === "rate_limited") return "Too many attempts. Please try again shortly.";
+  if (code === "invalid_email") return "Enter a valid email address.";
+  if (code === "missing_name") return "Enter your name to continue.";
+  return "Something went wrong. Please try again.";
 }
 
-form.addEventListener('submit', function(e){
-  e.preventDefault();
-  if(honeypot.value){ return; }
+form.addEventListener("submit", function(event){
+  event.preventDefault();
+  if (honeypot && honeypot.value) return;
 
   var name = nameInput.value.trim();
   var email = emailInput.value.trim();
@@ -138,92 +79,78 @@ form.addEventListener('submit', function(e){
   setFieldInvalid(nameInput, false);
   setFieldInvalid(emailInput, false);
 
-  if(!name){
-    setState('error','Enter your name to continue.');
+  if (!name) {
+    setState("error", "Enter your name to continue.");
     setFieldInvalid(nameInput, true);
     nameInput.focus();
     return;
   }
-  if(!emailPattern.test(email)){
-    setState('error','Enter a valid email to continue.');
-    setFieldInvalid(emailInput, true);
-    emailInput.focus();
-    return;
-  }
-  if(emailLooksFake(email)){
-    setState('error','That looks like a placeholder or disposable address. Use one you actually check.');
+
+  if (!emailPattern.test(email)) {
+    setState("error", "Enter a valid email address.");
     setFieldInvalid(emailInput, true);
     emailInput.focus();
     return;
   }
 
-  setState('loading','Submitting\u2026');
+  setState("loading", "Submitting…");
 
-  geoPromise.then(function(geo){
-    var payload = new URLSearchParams();
-    payload.append('name', name);
-    payload.append('email', email);
-    payload.append('source', detectSource());
-    payload.append('country', geo.country);
-    payload.append('ip', geo.ip);
-
-    var controller = ('AbortController' in window) ? new AbortController() : null;
-    var timeoutId = controller && setTimeout(function(){ controller.abort(); }, 12000);
-
-    return fetch(SCRIPT_URL, {
-      method:'POST',
-      mode:'no-cors',
-      body: payload,
-      signal: controller ? controller.signal : undefined
-    }).finally(function(){ if(timeoutId) clearTimeout(timeoutId); });
+  fetch("/api/waitlist", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      name: name,
+      email: email,
+      source: detectSource(),
+      company: honeypot ? honeypot.value : ""
+    })
   })
+    .then(function(response){
+      return response.json().then(function(data){
+        if (!response.ok || !data.ok) {
+          var error = new Error(data.error || "request_failed");
+          error.code = data.error || "request_failed";
+          throw error;
+        }
+        return data;
+      });
+    })
     .then(function(){
+      if (successSub) successSub.textContent = "You are on the list. We will contact you when there is news about Course Legend.";
       showSuccess();
     })
-    .catch(function(){
-      setState('error','Something went wrong. Please try again.');
+    .catch(function(error){
+      setState("error", messageForError(error.code || error.message));
     });
 });
 
-nameInput.addEventListener('input', function(){ setFieldInvalid(nameInput, false); });
-emailInput.addEventListener('input', function(){ setFieldInvalid(emailInput, false); });
+nameInput.addEventListener("input", function(){
+  setFieldInvalid(nameInput, false);
+});
+emailInput.addEventListener("input", function(){
+  setFieldInvalid(emailInput, false);
+});
 
-var floatingCta = document.getElementById('floating-cta');
-if(SHOW_FLOATING_CTA && floatingCta){
-  var ctaLink = floatingCta.querySelector('.floating-cta__link');
-  ctaLink.href = FLOATING_CTA_URL;
-  ctaLink.querySelector('span').textContent = FLOATING_CTA_LABEL;
-  floatingCta.hidden = false;
-  var ctaShown = false;
-  var revealCta = function(){
-    if(ctaShown) return;
-    ctaShown = true;
-    floatingCta.classList.add('is-visible');
-  };
-  setTimeout(revealCta, 5000);
-  window.addEventListener('scroll', revealCta, { once:true, passive:true });
-  floatingCta.querySelector('.floating-cta__close').addEventListener('click', function(){
-    floatingCta.classList.remove('is-visible');
-    setTimeout(function(){ floatingCta.hidden = true; }, 320);
-  });
-}
-
-if('IntersectionObserver' in window){
-  var items = document.querySelectorAll('.reveal');
+if ("IntersectionObserver" in window) {
+  var items = document.querySelectorAll(".reveal");
   var delays = [0,60,120,180,240,300];
-  items.forEach(function(el,i){
-    el.style.animationDelay = (delays[i] || 300) + 'ms';
+  items.forEach(function(item, index){
+    item.style.animationDelay = (delays[index] || 300) + "ms";
   });
-  var io = new IntersectionObserver(function(entries){
+  var observer = new IntersectionObserver(function(entries){
     entries.forEach(function(entry){
-      if(entry.isIntersecting){
-        entry.target.classList.add('is-in');
-        io.unobserve(entry.target);
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-in");
+        observer.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.1 });
-  items.forEach(function(el){ io.observe(el); });
+  }, {threshold:0.1});
+  items.forEach(function(item){
+    observer.observe(item);
+  });
 } else {
-  document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('is-in'); });
+  document.querySelectorAll(".reveal").forEach(function(item){
+    item.classList.add("is-in");
+  });
 }
 })();
