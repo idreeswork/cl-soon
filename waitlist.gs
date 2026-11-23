@@ -1,5 +1,4 @@
 const WAITLIST_SHEET = "Waitlist";
-const VISITOR_SHEET = "Website Tracker";
 const SIGNUP_RATE_LIMIT = 30;
 
 function doPost(e) {
@@ -53,11 +52,13 @@ function recordVisit_(params) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    const sheet = getOrCreateSheet_(VISITOR_SHEET, ["Received At","Country","Source","IP"]);
+    const sheet = getOrCreateSheet_(WAITLIST_SHEET, ["Received At","Name","Email","Source","Country","IP"]);
     appendRecord_(sheet, {
       "Received At": new Date(),
-      "Country": country,
+      "Name": "",
+      "Email": "",
       "Source": source,
+      "Country": country,
       "IP": ip
     });
   } finally {
