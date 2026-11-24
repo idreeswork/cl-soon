@@ -1,3 +1,5 @@
+const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqixrjoIW24Z2DB9BFqq-osXhZqDNlt-EccJPUv-dS3evxKAfX85p0oYYj5fBAXZ4kRg/exec";
+
 function jsonResponse(data, status) {
   return new Response(JSON.stringify(data), {
     status:status || 200,
@@ -39,15 +41,8 @@ function sourceFromRequest(request, fallback) {
   return clean(fallback, 200) || "direct";
 }
 
-function validateWebhookUrl(value) {
-  if (!value) throw new Error("missing_webhook");
-  if (value.includes("/dev")) throw new Error("webhook_dev_url");
-  let url;
-  try {
-    url = new URL(value);
-  } catch (error) {
-    throw new Error("invalid_webhook_url");
-  }
+function validateWebhookUrl() {
+  const url = new URL(GOOGLE_APPS_SCRIPT_URL);
   if (url.protocol !== "https:" || url.hostname !== "script.google.com" ||
       !/^\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname)) {
     throw new Error("invalid_webhook_url");
@@ -55,8 +50,8 @@ function validateWebhookUrl(value) {
   return url.toString();
 }
 
-async function postToAppsScript(env, values) {
-  const url = validateWebhookUrl(env.GOOGLE_APPS_SCRIPT_URL);
+async function postToAppsScript(values) {
+  const url = validateWebhookUrl();
   const body = new URLSearchParams();
   Object.keys(values).forEach(function(key) {
     body.set(key, String(values[key] == null ? "" : values[key]));
@@ -116,7 +111,7 @@ async function submitWaitlist(request, env) {
   };
 
   try {
-    const result = await postToAppsScript(env, values);
+    const result = await postToAppsScript(values);
     return jsonResponse(result);
   } catch (error) {
     const code = error.message || "webhook_failed";
@@ -125,9 +120,9 @@ async function submitWaitlist(request, env) {
   }
 }
 
-async function health(env) {
+async function health() {
   try {
-    const url = validateWebhookUrl(env.GOOGLE_APPS_SCRIPT_URL);
+    const url = validateWebhookUrl();
     const separator = url.includes("?") ? "&" : "?";
     const response = await fetch(url + separator + "health=1", {redirect:"follow"});
     const text = await response.text();
@@ -150,7 +145,7 @@ export async function onRequest(context) {
   }
 
   if (url.pathname === "/api/health" && request.method === "GET") {
-    return health(context.env);
+    return health();
   }
 
   const response = await context.next();
@@ -166,7 +161,7 @@ export async function onRequest(context) {
       country:countryName(request),
       ip:request.headers.get("cf-connecting-ip") || ""
     };
-    const visit = postToAppsScript(context.env, values).catch(function(){});
+    const visit = postToAppsScript(values).catch(function(){});
     context.waitUntil(visit);
   }
 
