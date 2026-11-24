@@ -2,6 +2,13 @@ const SPREADSHEET_ID = "1vrlypbUKG9h7yzGldN5cpJ79zPChwOz_nxJ4pekJPGA";
 const WAITLIST_SHEET = "Waitlist";
 const SIGNUP_RATE_LIMIT = 30;
 
+function authorizeSpreadsheet() {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = getOrCreateSheet_(WAITLIST_SHEET, ["Received At","Name","Email","Source","Country","IP"]);
+  Logger.log("Connected: " + spreadsheet.getName());
+  Logger.log("Worksheet: " + sheet.getName());
+}
+
 function doPost(e) {
   const params = (e && e.parameter) || {};
   const action = sanitize_(params.action, 20);
