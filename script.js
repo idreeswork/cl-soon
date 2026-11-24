@@ -65,13 +65,12 @@ function messageForError(code){
   if (code === "rate_limited") return "Too many attempts. Please try again shortly.";
   if (code === "invalid_email") return "Enter a valid email address.";
   if (code === "missing_name") return "Enter your name to continue.";
-  if (code === "missing_endpoint_setting") return "The form is not configured yet. Please try again later.";
-  if (code === "development_url_not_supported") return "The form endpoint is still in test mode. The site owner needs to publish the Apps Script Web App.";
-  if (code === "invalid_apps_script_url") return "The form endpoint is not configured correctly.";
-  if (code === "apps_script_access_denied") return "The signup service needs its public Web App access configured.";
-  if (code === "apps_script_not_json") return "The signup service did not return a valid response. Its authorization or deployment needs attention.";
-  if (code === "spreadsheet_access_error") return "The signup service cannot access the spreadsheet yet.";
-  if (code === "apps_script_unavailable") return "The signup service is temporarily unavailable. Please try again.";
+  if (code === "missing_google_credentials") return "The launch form is not connected yet. Please try again later.";
+  if (code === "google_credentials_invalid" || code === "google_token_failed") return "The Google connection needs to be checked by the site owner.";
+  if (code === "sheet_permission_denied") return "The Google connection does not have edit access to the Waitlist sheet.";
+  if (code === "spreadsheet_not_found") return "The configured Google Sheet could not be found.";
+  if (code === "sheet_range_invalid") return "The Waitlist tab or its columns could not be found.";
+  if (code === "sheets_api_failed") return "Google Sheets could not save your details. Please try again.";
   return "We couldn't save your details. Please try again in a moment.";
 }
 
