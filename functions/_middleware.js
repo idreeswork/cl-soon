@@ -44,30 +44,67 @@ function sourceFromRequest(request, fallback) {
   return clean(fallback, 200) || "direct";
 }
 
+async function wait(ms) {
+  return new Promise(function(resolve){ setTimeout(resolve, ms); });
+}
+
 async function sendToAppsScript(url, values) {
+  if (typeof url !== "string" || !url.trim()) throw new Error("missing_endpoint_setting");
+  if (url.includes("/dev")) throw new Error("development_url_not_supported");
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec\/?$/.test(url)) {
+    throw new Error("invalid_apps_script_url");
+  }
+
   const body = new URLSearchParams();
   Object.keys(values).forEach(function(key){
     body.set(key, String(values[key] == null ? "" : values[key]));
   });
-  const response = await fetch(url, {
-    method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
-    body:body.toString()
-  });
-  const text = await response.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (error) {
-    throw new Error("invalid_apps_script_response");
+
+  let lastError = "apps_script_unavailable";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method:"POST",
+        redirect:"follow",
+        headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+        body:body.toString()
+      });
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        if (response.status === 404 || response.status >= 500) {
+          lastError = "apps_script_unavailable";
+          if (attempt < 2) {
+            await wait(1000 * (attempt + 1));
+            continue;
+          }
+        }
+        if (response.status === 401 || response.status === 403) throw new Error("apps_script_access_denied");
+        throw new Error("apps_script_not_json");
+      }
+
+      if (response.ok && data.ok) return data;
+      const code = data.error || "apps_script_unavailable";
+      if (code === "server_error" || code === "spreadsheet_error") {
+        throw new Error("spreadsheet_access_error");
+      }
+      throw new Error(code);
+    } catch (error) {
+      lastError = error.message || "apps_script_unavailable";
+      if (["apps_script_access_denied","apps_script_not_json","spreadsheet_access_error","development_url_not_supported","invalid_apps_script_url","missing_endpoint_setting","disposable_email","invalid_email","missing_name","rate_limited"].includes(lastError)) {
+        throw error;
+      }
+      if (attempt < 2) await wait(1000 * (attempt + 1));
+    }
   }
-  if (!response.ok || !data.ok) throw new Error(data.error || "apps_script_failed");
-  return data;
+  throw new Error(lastError === "invalid_apps_script_response" ? "apps_script_not_json" : "apps_script_unavailable");
 }
 
 async function submitWaitlist(request, env) {
   if (!env.GOOGLE_APPS_SCRIPT_URL) {
-    return jsonResponse({ok:false,error:"configuration_error"}, 503);
+    return jsonResponse({ok:false,error:"missing_endpoint_setting"}, 503);
   }
 
   let payload;
@@ -101,7 +138,7 @@ async function submitWaitlist(request, env) {
     });
     return jsonResponse(result);
   } catch (error) {
-    const code = error.message || "upstream_error";
+    const code = error.message || "apps_script_unavailable";
     const status = code === "rate_limited" ? 429 : 502;
     return jsonResponse({ok:false,error:code}, status);
   }
