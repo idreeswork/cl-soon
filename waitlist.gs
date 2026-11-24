@@ -48,7 +48,16 @@ function doPost(e) {
   return jsonResponse_({ok:true});
 }
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.health === "1") {
+    try {
+      const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const sheet = getOrCreateSheet_(WAITLIST_SHEET, ["Received At","Name","Email","Source","Country","IP"]);
+      return jsonResponse_({ok:true,spreadsheet:spreadsheet.getName(),sheet:sheet.getName()});
+    } catch (error) {
+      return jsonResponse_({ok:false,error:"spreadsheet_access_error"});
+    }
+  }
   return ContentService.createTextOutput("Course Legend endpoint is live.")
     .setMimeType(ContentService.MimeType.TEXT);
 }
