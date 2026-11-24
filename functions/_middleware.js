@@ -142,16 +142,6 @@ function sourceFromRequest(request, fallback) {
   return clean(fallback, 200) || "direct";
 }
 
-async function appendWaitlistRow(row) {
-  const path = "/values/" + encodeURIComponent(SHEET_RANGE) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS";
-  return sheetsRequest(currentEnv, path, {
-    method:"POST",
-    body:{values:[row]}
-  });
-}
-
-let currentEnv = null;
-
 async function appendRow(env, row) {
   const path = "/values/" + encodeURIComponent(SHEET_RANGE) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS";
   return sheetsRequest(env, path, {
