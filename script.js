@@ -65,7 +65,14 @@ function messageForError(code){
   if (code === "rate_limited") return "Too many attempts. Please try again shortly.";
   if (code === "invalid_email") return "Enter a valid email address.";
   if (code === "missing_name") return "Enter your name to continue.";
-  return "Something went wrong. Please try again.";
+  if (code === "missing_endpoint_setting") return "The form is not configured yet. Please try again later.";
+  if (code === "development_url_not_supported") return "The form endpoint is still in test mode. The site owner needs to publish the Apps Script Web App.";
+  if (code === "invalid_apps_script_url") return "The form endpoint is not configured correctly.";
+  if (code === "apps_script_access_denied") return "The signup service needs its public Web App access configured.";
+  if (code === "apps_script_not_json") return "The signup service did not return a valid response. Its authorization or deployment needs attention.";
+  if (code === "spreadsheet_access_error") return "The signup service cannot access the spreadsheet yet.";
+  if (code === "apps_script_unavailable") return "The signup service is temporarily unavailable. Please try again.";
+  return "We couldn't save your details. Please try again in a moment.";
 }
 
 form.addEventListener("submit", function(event){
@@ -95,6 +102,9 @@ form.addEventListener("submit", function(event){
 
   setState("loading", "Submitting…");
 
+  var controller = "AbortController" in window ? new AbortController() : null;
+  var timeout = controller ? setTimeout(function(){ controller.abort(); }, 20000) : null;
+
   fetch("/api/waitlist", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
@@ -103,10 +113,13 @@ form.addEventListener("submit", function(event){
       email: email,
       source: detectSource(),
       company: honeypot ? honeypot.value : ""
-    })
+    }),
+    signal: controller ? controller.signal : undefined
   })
     .then(function(response){
-      return response.json().then(function(data){
+      return response.json().catch(function(){
+        throw new Error("apps_script_not_json");
+      }).then(function(data){
         if (!response.ok || !data.ok) {
           var error = new Error(data.error || "request_failed");
           error.code = data.error || "request_failed";
@@ -116,11 +129,16 @@ form.addEventListener("submit", function(event){
       });
     })
     .then(function(){
-      if (successSub) successSub.textContent = "You are on the list. We will contact you when there is news about Course Legend.";
+      if (successSub) successSub.textContent = "We’ll email you when Course Legend is ready.";
       showSuccess();
     })
     .catch(function(error){
-      setState("error", messageForError(error.code || error.message));
+      var code = error.code || error.message;
+      if (error.name === "AbortError") code = "apps_script_unavailable";
+      setState("error", messageForError(code));
+    })
+    .finally(function(){
+      if (timeout) clearTimeout(timeout);
     });
 });
 
