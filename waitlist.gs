@@ -1,3 +1,4 @@
+const SPREADSHEET_ID = "1vrlypbUKG9h7yzGldN5cpJ79zPChwOz_nxJ4pekJPGA";
 const WAITLIST_SHEET = "Waitlist";
 const SIGNUP_RATE_LIMIT = 30;
 
@@ -68,7 +69,7 @@ function recordVisit_(params) {
 }
 
 function getOrCreateSheet_(name, requiredHeaders) {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   let sheet = spreadsheet.getSheetByName(name);
   if (!sheet) sheet = spreadsheet.insertSheet(name);
 
