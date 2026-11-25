@@ -42,38 +42,21 @@ export function sourceFromRequest(request, fallback) {
 }
 
 async function interpretAppsScriptResponse(response) {
-  if ([301,302,303,307,308].includes(response.status)) {
-    const location = response.headers.get("location") || "";
-    if (location) {
-      let destination;
-      try {
-        destination = new URL(location, GOOGLE_APPS_SCRIPT_URL);
-      } catch (error) {
-        throw new Error("webhook_invalid_redirect");
-      }
-      if (destination.hostname === "script.googleusercontent.com") {
-        return {ok:true,result:"success"};
-      }
-      if (destination.hostname === "accounts.google.com" || destination.hostname === "script.google.com") {
-        throw new Error("webhook_access_denied");
-      }
-    }
-    throw new Error("webhook_invalid_redirect");
-  }
-
   const text = await response.text();
   let data;
   try {
     data = JSON.parse(text);
   } catch (error) {
-    if (/accounts\?authuser|sign in|google drive|unable to open the file/i.test(text)) {
+    if (/accounts\\?authuser|sign in|google drive|unable to open the file/i.test(text)) {
       throw new Error("webhook_access_denied");
     }
     throw new Error("webhook_invalid_response");
   }
 
   const accepted = data.ok === true || data.result === "success";
-  if (!response.ok || !accepted) throw new Error(data.error || "webhook_failed");
+  if (!response.ok || !accepted) {
+    throw new Error(data.error || "webhook_failed");
+  }
   return data;
 }
 
@@ -85,7 +68,7 @@ export async function sendToAppsScript(values) {
 
   const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
     method:"POST",
-    redirect:"manual",
+    redirect:"follow",
     headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
     body:body.toString()
   });
@@ -96,6 +79,6 @@ export async function sendToAppsScript(values) {
 export async function checkAppsScript() {
   const url = new URL(GOOGLE_APPS_SCRIPT_URL);
   url.searchParams.set("health", "1");
-  const response = await fetch(url.toString(), {redirect:"manual"});
+  const response = await fetch(url.toString(), {redirect:"follow"});
   return interpretAppsScriptResponse(response);
 }
