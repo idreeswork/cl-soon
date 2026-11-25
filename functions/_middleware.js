@@ -75,14 +75,15 @@ async function postToAppsScript(values) {
     throw new Error("webhook_invalid_response");
   }
 
-  if (!response.ok || !data.ok) {
+  const accepted = data.ok === true || data.result === "success";
+  if (!response.ok || !accepted) {
     const code = data.error || "webhook_failed";
     if (code === "sheet_write_failed" || code === "sheet_access_failed") {
       throw new Error("sheet_access_failed");
     }
     throw new Error(code);
   }
-  return data;
+  return {ok:true,duplicate:!!data.duplicate};
 }
 
 async function submitWaitlist(request, env) {
@@ -127,7 +128,7 @@ async function health() {
     const response = await fetch(url + separator + "health=1", {redirect:"follow"});
     const text = await response.text();
     const data = JSON.parse(text);
-    if (!response.ok || !data.ok) {
+    if (!response.ok || !(data.ok === true || data.result === "success")) {
       return jsonResponse({ok:false,error:data.error || "webhook_failed"}, 502);
     }
     return jsonResponse(data);
