@@ -11,6 +11,19 @@ var defaultNote = note.textContent;
 var successPanel = document.getElementById("success-panel");
 var successSub = document.getElementById("success-sub");
 
+function sendVisit(){
+  if (window.location.hostname !== "courselegend.com" &&
+      window.location.hostname !== "www.courselegend.com") return;
+  fetch("/api/visit", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({source:detectSource()}),
+    keepalive:true
+  }).catch(function(){});
+}
+sendVisit();
+
+
 function detectSource(){
   var params = new URLSearchParams(window.location.search);
   var utm = params.get("utm_source");
