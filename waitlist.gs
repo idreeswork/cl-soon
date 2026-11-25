@@ -16,7 +16,7 @@ function doPost(e) {
 
     if (action === "visit") {
       recordVisit_(params);
-      return jsonResponse_({ok:true});
+      return jsonResponse_({ok:true,result:"success"});
     }
 
     if (isRateLimited_()) {
@@ -26,22 +26,22 @@ function doPost(e) {
     const company = sanitize_(params.company, 200);
     if (company) return jsonResponse_({ok:true});
 
-    const name = sanitize_(params.name, 100);
-    const email = sanitize_(params.email, 254).toLowerCase();
-    const source = sanitize_(params.source, 200) || "direct";
-    const country = sanitize_(params.country, 100);
-    const ip = sanitize_(params.ip, 64);
+    const name = sanitize_(params.name || params.Name, 100);
+    const email = sanitize_(params.email || params.Email, 254).toLowerCase();
+    const source = sanitize_(params.source || params.Source, 200) || "direct";
+    const country = sanitize_(params.country || params.Country, 100);
+    const ip = sanitize_(params.ip || params.IP, 64);
 
-    if (!name) return jsonResponse_({ok:false,error:"missing_name"});
-    if (!isValidEmail_(email)) return jsonResponse_({ok:false,error:"invalid_email"});
-    if (isDisposableOrDummy_(email)) return jsonResponse_({ok:false,error:"disposable_email"});
+    if (!name) return jsonResponse_({ok:false,result:"error",error:"missing_name"});
+    if (!isValidEmail_(email)) return jsonResponse_({ok:false,result:"error",error:"invalid_email"});
+    if (isDisposableOrDummy_(email)) return jsonResponse_({ok:false,result:"error",error:"disposable_email"});
 
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
       const sheet = getOrCreateSheet_();
       if (emailExists_(sheet, email)) {
-        return jsonResponse_({ok:true,duplicate:true});
+        return jsonResponse_({ok:true,result:"success",duplicate:true});
       }
       sheet.appendRow([
         new Date(),
@@ -58,7 +58,7 @@ function doPost(e) {
     return jsonResponse_({ok:true});
   } catch (error) {
     Logger.log(String(error));
-    return jsonResponse_({ok:false,error:"sheet_write_failed"});
+    return jsonResponse_({ok:false,result:"error",error:"sheet_write_failed"});
   }
 }
 
@@ -74,13 +74,14 @@ function doGet(e) {
     const sheet = getOrCreateSheet_();
     return jsonResponse_({
       ok:true,
+      result:"success",
       spreadsheet:spreadsheet.getName(),
       sheet:sheet.getName(),
       headers:sheet.getRange(1, 1, 1, 6).getValues()[0]
     });
   } catch (error) {
     Logger.log(String(error));
-    return jsonResponse_({ok:false,error:"sheet_access_failed"});
+    return jsonResponse_({ok:false,result:"error",error:"sheet_access_failed"});
   }
 }
 
