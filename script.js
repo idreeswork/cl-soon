@@ -82,6 +82,7 @@ function messageForError(code){
   if (code === "webhook_dev_url") return "The signup connection is still using its test URL. The site owner needs to use the published Web App URL.";
   if (code === "invalid_webhook_url") return "The signup connection URL is not configured correctly.";
   if (code === "webhook_access_denied") return "The signup service is not publicly accessible yet. The site owner needs to update its Web App access.";
+  if (code === "webhook_handler_mismatch") return "The signup endpoint is running a different Apps Script handler. The site owner needs to update the Course Legend deployment.";
   if (code === "webhook_invalid_response") return "The signup service returned an unexpected response. The site owner needs to check its deployment.";
   if (code === "sheet_access_failed" || code === "sheet_write_failed") return "The signup service cannot access the Waitlist sheet yet.";
   if (code === "webhook_failed") return "The signup service is temporarily unavailable. Please try again.";
