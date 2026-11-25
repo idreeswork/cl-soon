@@ -7,7 +7,7 @@ export async function onRequest(context) {
 
   try {
     const payload = await context.request.json().catch(function(){ return {}; });
-    const result = await sendToAppsScript({
+    await sendToAppsScript({
       action:"courselegend_visit_v1",
       source:sourceFromRequest(context.request, String(payload.source || "")),
       country:countryName(context.request),

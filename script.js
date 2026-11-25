@@ -23,7 +23,6 @@ function sendVisit(){
 }
 sendVisit();
 
-
 function detectSource(){
   var params = new URLSearchParams(window.location.search);
   var utm = params.get("utm_source");
@@ -78,15 +77,9 @@ function messageForError(code){
   if (code === "rate_limited") return "Too many attempts. Please try again shortly.";
   if (code === "invalid_email") return "Enter a valid email address.";
   if (code === "missing_name") return "Enter your name to continue.";
-  if (code === "missing_webhook") return "The launch form is not connected yet. Please try again later.";
-  if (code === "webhook_dev_url") return "The signup connection is still using its test URL. The site owner needs to use the published Web App URL.";
-  if (code === "invalid_webhook_url") return "The signup connection URL is not configured correctly.";
-  if (code === "webhook_access_denied") return "The signup service is not publicly accessible yet. The site owner needs to update its Web App access.";
-  if (code === "webhook_handler_mismatch") return "The signup endpoint is running a different Apps Script handler. The site owner needs to update the Course Legend deployment.";
-  if (code === "webhook_invalid_response") return "The signup service returned an unexpected response. The site owner needs to check its deployment.";
-  if (code === "sheet_access_failed" || code === "sheet_write_failed") return "The signup service cannot access the Waitlist sheet yet.";
-  if (code === "webhook_failed") return "The signup service is temporarily unavailable. Please try again.";
-  return "We couldn't save your details. Please try again in a moment.";
+  if (code === "webhook_timeout" || code === "apps_script_unavailable") return "The request took too long. Please try again.";
+  if (code === "network_error" || code === "apps_script_not_json") return "We couldn't reach the server. Check your connection and try again.";
+  return "We couldn't save your details right now. Please try again in a few minutes.";
 }
 
 form.addEventListener("submit", function(event){
@@ -142,13 +135,18 @@ form.addEventListener("submit", function(event){
         return data;
       });
     })
-    .then(function(){
-      if (successSub) successSub.textContent = "We’ll email you when Course Legend is ready.";
+    .then(function(data){
+      if (successSub) {
+        successSub.textContent = data.duplicate
+          ? "You’re already on the list. We’ll email you when Course Legend is ready."
+          : "We’ll email you when Course Legend is ready.";
+      }
       showSuccess();
     })
     .catch(function(error){
       var code = error.code || error.message;
       if (error.name === "AbortError") code = "apps_script_unavailable";
+      else if (error.name === "TypeError") code = "network_error";
       setState("error", messageForError(code));
     })
     .finally(function(){

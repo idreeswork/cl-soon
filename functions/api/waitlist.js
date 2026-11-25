@@ -36,7 +36,7 @@ export async function onRequest(context) {
     return jsonResponse({ok:true,result:"success",duplicate:!!result.duplicate});
   } catch (error) {
     const code = error.message || "webhook_failed";
-    const status = code === "rate_limited" ? 429 : 502;
+    const status = code === "rate_limited" ? 429 : code === "disposable_email" ? 422 : 502;
     return jsonResponse({ok:false,error:code}, status);
   }
 }

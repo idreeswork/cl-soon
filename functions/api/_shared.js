@@ -42,10 +42,12 @@ export function sourceFromRequest(request, fallback) {
 }
 
 async function interpretAppsScriptResponse(response) {
-  const text = await response.text();
+  const text = await response.text().catch(function() {
+    throw new Error("webhook_unreachable");
+  });
   let data;
   try {
-    data = JSON.parse(text);
+    data = JSON.parse(text.trim());
   } catch (error) {
     if (/accounts\\?authuser|sign in|google drive|unable to open the file/i.test(text)) {
       throw new Error("webhook_access_denied");
@@ -53,7 +55,7 @@ async function interpretAppsScriptResponse(response) {
     throw new Error("webhook_invalid_response");
   }
 
-  if (data.service !== "courselegend-waitlist") {
+  if (!data || data.service !== "courselegend-waitlist") {
     throw new Error("webhook_handler_mismatch");
   }
   const accepted = data.ok === true && data.result === "success";
@@ -63,25 +65,30 @@ async function interpretAppsScriptResponse(response) {
   return data;
 }
 
-export async function sendToAppsScript(values) {
+async function callAppsScript(url, init) {
+  let response;
+  try {
+    response = await fetch(url, Object.assign({redirect:"follow", signal:AbortSignal.timeout(15000)}, init));
+  } catch (error) {
+    throw new Error(error && error.name === "TimeoutError" ? "webhook_timeout" : "webhook_unreachable");
+  }
+  return interpretAppsScriptResponse(response);
+}
+
+export function sendToAppsScript(values) {
   const body = new URLSearchParams();
   Object.keys(values).forEach(function(key) {
     body.set(key, String(values[key] == null ? "" : values[key]));
   });
-
-  const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+  return callAppsScript(GOOGLE_APPS_SCRIPT_URL, {
     method:"POST",
-    redirect:"follow",
     headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
     body:body.toString()
   });
-
-  return interpretAppsScriptResponse(response);
 }
 
-export async function checkAppsScript() {
+export function checkAppsScript() {
   const url = new URL(GOOGLE_APPS_SCRIPT_URL);
   url.searchParams.set("health", "1");
-  const response = await fetch(url.toString(), {redirect:"follow"});
-  return interpretAppsScriptResponse(response);
+  return callAppsScript(url.toString(), {method:"GET"});
 }
