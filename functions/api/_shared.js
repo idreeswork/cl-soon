@@ -53,7 +53,10 @@ async function interpretAppsScriptResponse(response) {
     throw new Error("webhook_invalid_response");
   }
 
-  const accepted = data.ok === true || data.result === "success";
+  if (data.service !== "courselegend-waitlist") {
+    throw new Error("webhook_handler_mismatch");
+  }
+  const accepted = data.ok === true && data.result === "success";
   if (!response.ok || !accepted) {
     throw new Error(data.error || "webhook_failed");
   }
