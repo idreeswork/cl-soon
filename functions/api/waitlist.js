@@ -26,6 +26,7 @@ export async function onRequest(context) {
 
   try {
     const result = await sendToAppsScript({
+      action:"courselegend_signup_v1",
       name:name,
       email:email,
       source:sourceFromRequest(context.request, clean(payload.source, 200)),
