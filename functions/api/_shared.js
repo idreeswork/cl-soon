@@ -41,18 +41,25 @@ export function sourceFromRequest(request, fallback) {
   return clean(fallback, 200) || "direct";
 }
 
-export async function sendToAppsScript(values) {
-  const body = new URLSearchParams();
-  Object.keys(values).forEach(function(key) {
-    body.set(key, String(values[key] == null ? "" : values[key]));
-  });
-
-  const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-    method:"POST",
-    redirect:"follow",
-    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
-    body:body.toString()
-  });
+async function interpretAppsScriptResponse(response) {
+  if ([301,302,303,307,308].includes(response.status)) {
+    const location = response.headers.get("location") || "";
+    if (location) {
+      let destination;
+      try {
+        destination = new URL(location, GOOGLE_APPS_SCRIPT_URL);
+      } catch (error) {
+        throw new Error("webhook_invalid_redirect");
+      }
+      if (destination.hostname === "script.googleusercontent.com") {
+        return {ok:true,result:"success"};
+      }
+      if (destination.hostname === "accounts.google.com" || destination.hostname === "script.google.com") {
+        throw new Error("webhook_access_denied");
+      }
+    }
+    throw new Error("webhook_invalid_redirect");
+  }
 
   const text = await response.text();
   let data;
@@ -66,25 +73,29 @@ export async function sendToAppsScript(values) {
   }
 
   const accepted = data.ok === true || data.result === "success";
-  if (!response.ok || !accepted) {
-    throw new Error(data.error || "webhook_failed");
-  }
+  if (!response.ok || !accepted) throw new Error(data.error || "webhook_failed");
   return data;
+}
+
+export async function sendToAppsScript(values) {
+  const body = new URLSearchParams();
+  Object.keys(values).forEach(function(key) {
+    body.set(key, String(values[key] == null ? "" : values[key]));
+  });
+
+  const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+    method:"POST",
+    redirect:"manual",
+    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+    body:body.toString()
+  });
+
+  return interpretAppsScriptResponse(response);
 }
 
 export async function checkAppsScript() {
   const url = new URL(GOOGLE_APPS_SCRIPT_URL);
   url.searchParams.set("health", "1");
-  const response = await fetch(url.toString(), {redirect:"follow"});
-  const text = await response.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (error) {
-    throw new Error("webhook_invalid_response");
-  }
-  if (!response.ok || !(data.ok === true || data.result === "success")) {
-    throw new Error(data.error || "webhook_failed");
-  }
-  return data;
+  const response = await fetch(url.toString(), {redirect:"manual"});
+  return interpretAppsScriptResponse(response);
 }
