@@ -10,51 +10,65 @@ function authorizeSpreadsheet() {
 }
 
 function doPost(e) {
-  const params = (e && e.parameter) || {};
-  const action = sanitize_(params.action, 20);
-
-  if (action === "visit") {
-    recordVisit_(params);
-    return jsonResponse_({ok:true,result:"success"});
-  }
-
-  if (isRateLimited_()) throw new Error("rate_limited");
-
-  const company = sanitize_(params.company, 200);
-  if (company) return jsonResponse_({ok:true,result:"success"});
-
-  const name = sanitize_(params.name || params.Name, 100);
-  const email = sanitize_(params.email || params.Email, 254).toLowerCase();
-  const source = sanitize_(params.source || params.Source, 200) || "direct";
-  const country = sanitize_(params.country || params.Country, 100);
-  const ip = sanitize_(params.ip || params.IP, 64);
-
-  if (!name) throw new Error("missing_name");
-  if (!isValidEmail_(email)) throw new Error("invalid_email");
-  if (isDisposableOrDummy_(email)) throw new Error("disposable_email");
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
   try {
-    const sheet = getOrCreateSheet_();
-    if (emailExists_(sheet, email)) {
-      return jsonResponse_({ok:true,result:"success",duplicate:true});
+    const params = (e && e.parameter) || {};
+    const action = sanitize_(params.action, 40);
+
+    if (action === "courselegend_visit_v1") {
+      recordVisit_(params);
+      return courseLegendResponse_({ok:true,result:"success"});
     }
-    sheet.appendRow([
-      new Date(),
-      safeCell_(name),
-      safeCell_(email),
-      safeCell_(source),
-      safeCell_(country),
-      safeCell_(ip)
-    ]);
-  } finally {
-    lock.releaseLock();
+
+    if (action !== "courselegend_signup_v1") {
+      throw new Error("unknown_action");
+    }
+
+    if (isRateLimited_()) throw new Error("rate_limited");
+
+    const company = sanitize_(params.company, 200);
+    if (company) return courseLegendResponse_({ok:true,result:"success"});
+
+    const name = sanitize_(params.name || params.Name, 100);
+    const email = sanitize_(params.email || params.Email, 254).toLowerCase();
+    const source = sanitize_(params.source || params.Source, 200) || "direct";
+    const country = sanitize_(params.country || params.Country, 100);
+    const ip = sanitize_(params.ip || params.IP, 64);
+
+    if (!name) throw new Error("missing_name");
+    if (!isValidEmail_(email)) throw new Error("invalid_email");
+    if (isDisposableOrDummy_(email)) throw new Error("disposable_email");
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const sheet = getOrCreateSheet_();
+      if (emailExists_(sheet, email)) {
+        return courseLegendResponse_({ok:true,result:"success",duplicate:true});
+      }
+      sheet.appendRow([
+        new Date(),
+        safeCell_(name),
+        safeCell_(email),
+        safeCell_(source),
+        safeCell_(country),
+        safeCell_(ip)
+      ]);
+    } finally {
+      lock.releaseLock();
+    }
+
+    return courseLegendResponse_({ok:true,result:"success"});
+  } catch (error) {
+    Logger.log(String(error));
+    const message = String(error && error.message || error);
+    const allowed = ["rate_limited","missing_name","invalid_email","disposable_email","unknown_action"];
+    return courseLegendResponse_({
+      ok:false,
+      result:"error",
+      error:allowed.indexOf(message) !== -1 ? message : "sheet_write_failed"
+    });
   }
-
-  return jsonResponse_({ok:true,result:"success"});
 }
-
 
 function doGet(e) {
   const health = e && e.parameter && e.parameter.health === "1";
@@ -63,15 +77,20 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.TEXT);
   }
 
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = getOrCreateSheet_();
-  return jsonResponse_({
-    ok:true,
-    result:"success",
-    spreadsheet:spreadsheet.getName(),
-    sheet:sheet.getName(),
-    headers:sheet.getRange(1, 1, 1, 6).getValues()[0]
-  });
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = getOrCreateSheet_();
+    return courseLegendResponse_({
+      ok:true,
+      result:"success",
+      spreadsheet:spreadsheet.getName(),
+      sheet:sheet.getName(),
+      headers:sheet.getRange(1, 1, 1, 6).getValues()[0]
+    });
+  } catch (error) {
+    Logger.log(String(error));
+    return courseLegendResponse_({ok:false,result:"error",error:"sheet_access_failed"});
+  }
 }
 
 function recordVisit_(params) {
@@ -191,4 +210,9 @@ function isDisposableOrDummy_(email) {
 function jsonResponse_(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function courseLegendResponse_(data) {
+  data.service = "courselegend-waitlist";
+  return jsonResponse_(data);
 }
