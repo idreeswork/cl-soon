@@ -1,4 +1,4 @@
-const SPREADSHEET_ID = "1vrlypbUKG9h7yzGldN5cpJ79zPChwOz_nxJ4pekJPGA";
+const SPREADSHEET_ID = "1vrJypbUKG9h7yzGldN5cpJ79zPChwQz_nxJ4pekJPGA";
 const WAITLIST_SHEET = "Waitlist";
 const SIGNUP_RATE_LIMIT = 30;
 
