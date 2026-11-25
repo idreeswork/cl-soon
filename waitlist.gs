@@ -10,6 +10,44 @@ function authorizeSpreadsheet() {
 }
 
 function doPost(e) {
+  const params = (e && e.parameter) || {};
+  const action = sanitize_(params.action, 40);
+
+  if (action === "courselegend_signup_v1" || action === "courselegend_visit_v1") {
+    return handleWaitlistPost_(e);
+  }
+
+  if (e && e.postData && e.postData.contents) {
+    let payload;
+    try {
+      payload = JSON.parse(e.postData.contents);
+    } catch (error) {
+      payload = null;
+    }
+
+    if (payload && (payload.post || payload.post_meta || payload.taxonomies || payload.post_permalink || payload.post_id)) {
+      return handleCourseDataPost_(e);
+    }
+  }
+
+  if (params.course && params.url && params.issue) {
+    return handleReportFormPost_(e);
+  }
+
+  return jsonResponse_({
+    ok:false,
+    result:"error",
+    error:"unknown_request"
+  });
+}
+
+function doGet(e) {
+  const params = (e && e.parameter) || {};
+  if (params.health === "1") return handleWaitlistGet_(e);
+  return handleReportFormGet_(e);
+}
+
+function handleWaitlistPost_(e) {
   try {
     const params = (e && e.parameter) || {};
     const action = sanitize_(params.action, 40);
@@ -70,7 +108,7 @@ function doPost(e) {
   }
 }
 
-function doGet(e) {
+function handleWaitlistGet_(e) {
   const health = e && e.parameter && e.parameter.health === "1";
   if (!health) {
     return ContentService.createTextOutput("Course Legend endpoint is live.")
