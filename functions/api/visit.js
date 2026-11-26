@@ -15,6 +15,6 @@ export async function onRequest(context) {
     });
     return jsonResponse({ok:true,result:"success"});
   } catch (error) {
-    return jsonResponse({ok:false,error:error.message || "webhook_failed"}, 502);
+    return jsonResponse({ok:false,error:error.message || "webhook_failed"}, 500);
   }
 }

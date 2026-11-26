@@ -7,6 +7,6 @@ export async function onRequest(context) {
   try {
     return jsonResponse(await checkAppsScript());
   } catch (error) {
-    return jsonResponse({ok:false,error:error.message || "webhook_failed"}, 502);
+    return jsonResponse({ok:false,error:error.message || "webhook_failed"}, 500);
   }
 }
