@@ -2,7 +2,7 @@ import {clean, countryName, jsonResponse, sendToAppsScript, sourceFromRequest} f
 
 export async function onRequest(context) {
   if (context.request.method !== "POST") {
-    return jsonResponse({ok:false,error:"method_not_allowed"}, 405);
+    return jsonResponse({ok:false,error:"not_found"}, 404);
   }
 
   let payload;

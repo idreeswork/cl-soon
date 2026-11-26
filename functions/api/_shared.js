@@ -16,6 +16,7 @@ export function countryName(request) {
     ? request.cf.country
     : request.headers.get("cf-ipcountry") || "";
   if (!code || code === "XX") return "";
+  if (code === "T1") return "Tor network";
   try {
     return new Intl.DisplayNames(["en"], {type:"region"}).of(code) || code;
   } catch (error) {
@@ -85,10 +86,4 @@ export function sendToAppsScript(values) {
     headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
     body:body.toString()
   });
-}
-
-export function checkAppsScript() {
-  const url = new URL(GOOGLE_APPS_SCRIPT_URL);
-  url.searchParams.set("health", "1");
-  return callAppsScript(url.toString(), {method:"GET"});
 }
